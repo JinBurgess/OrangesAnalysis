@@ -1,0 +1,48 @@
+---
+title: "Orange test"
+author: "JinYuHanBurgess"
+date: "2024-04-27"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+```
+
+
+```{r cars}
+library(readr)
+df <- read_csv('./OrangeQualityAnalysis/data/OrangeQualityData.csv')
+```
+
+```{r}
+library(dplyr)
+library(stringr)
+df1 <- df %>%
+  mutate(`Blemishes (Y/N)` = if_else(str_detect(`Blemishes (Y/N)`, 'Y'), 1, 0))
+
+# 1 = Yes blemish
+# 0 = No blemish
+```
+
+```{r}
+library(nnet)
+
+# Fit multinomial logistic regression model
+multinom.obj <- multinom(Variety ~ `Size (cm)` + `Weight (g)` + `Brix (Sweetness)` + `pH (Acidity)` + `Softness (1-5)` + `HarvestTime (days)` + `Ripeness (1-5)` + `Blemishes (Y/N)` + `Quality (1-5)`, data = df1)
+
+test <- step(multinom.obj)
+
+
+```
+
+```{r}
+multinom.obj <- multinom(Variety ~ `Size (cm)` + `Brix (Sweetness)` + `pH (Acidity)` + `Quality (1-5)`, data = df1)
+```
+
+```{r}
+library(ggplot2)
+
+geom 
+```
+
