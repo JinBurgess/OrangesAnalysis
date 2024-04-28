@@ -41,8 +41,21 @@ multinom.obj <- multinom(Variety ~ `Size (cm)` + `Brix (Sweetness)` + `pH (Acidi
 ```
 
 ```{r}
-library(ggplot2)
+ colnames(df1) <- c("Size", "Weight", "Sweetness",
+                  "Acidity", "Softness", "HarvestTime", 
+                  "Ripeness", "Color", "Variety", 
+                  "Blemish", "Quality")
 
-geom 
 ```
+
+```{r}
+# install.packages("randomForest")
+library(randomForest)
+
+
+set.seed(101)
+rfc <- randomForest(Sweetness ~ . -Variety, data = df1)
+getTree(rfc, 1, labelVar=TRUE)
+```
+
 
