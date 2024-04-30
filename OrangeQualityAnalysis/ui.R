@@ -8,6 +8,8 @@ shinyUI(
   navbarPage("Orange Quality Data", 
              tabPanel("Overview", 
                       htmlOutput("overview.content")), # tabPanel Overview
+             tabPanel("Dataset",
+                      dataTableOutput("dataset")),
              tabPanel("DataVis",
                       dashboardPage(
                         dashboardHeader(title = "Exploratory Analysis"),
@@ -121,17 +123,39 @@ shinyUI(
                                     fluidPage(  
                                         sidebarLayout(
                                           sidebarPanel(
-                                          ),
+                                          ), #sidebarPanel
                                           
                                           mainPanel(
                                             plotOutput("regressOutput", height=550)
-                                          )
-                                        )
-                                    ))
-                            ) # tabitems
+                                          ) # mainPanel regress
+                                        ) # sidebarPanel
+                                    ) # fluidPage
+                                    ) # tabItem
+                            ) # tabItems
                           ) # dashboard body
                         ) # dashboard page
              ), # tab Panel 
-             tabPanel("Statistics")
+             tabPanel("Statistics",
+                      dashboardPage(
+                        dashboardHeader(title = "Statistical Analysis"),
+                        dashboardSidebar(
+                          sidebarMenu(
+                            menuItem("Initial Analysis", tabName = "initial", icon = icon("bar-chart")),
+                            menuItem("Categorical", tabName = "cat", icon = icon("bar-chart")),
+                            menuItem("Multi Linear Regression", tabName = "mlr", icon = icon("dashboard"),
+                                     menuSubItem("Model Diagnostics", tabName = "diagnostics"),
+                                     menuSubItem("Influential Observations", tabName = "influential")),
+                            menuItem("Multi Logistic Regression", tabName = "mlogr", icon = icon("dashboard"))
+                          ) # sidebarMenu
+                        ), # dashboardSidebar
+                        dashboardBody(
+                          # tabItems(
+                          #   tabItem(tabName = "initial",
+                          #           rende)
+                          # )
+                        )
+                        
+                      ) # dashboardPage
+             ) # tabPanel
   ) # navbarPage
 ) # shinyUI

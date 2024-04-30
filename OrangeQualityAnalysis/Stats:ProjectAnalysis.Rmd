@@ -178,4 +178,7 @@ multinom.obj <- multinom(Sweetness ~Size + Weight + Acidity + Softness + Harvest
 test <- step(multinom.obj)
 ```
 
+```{r}
+
+```
 

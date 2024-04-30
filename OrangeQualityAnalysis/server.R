@@ -10,6 +10,10 @@ shinyServer(function(input, output, session) {
     overview.content
   })
   
+  output$dataset <- renderDataTable({
+    datatable(df)
+  })
+  
   colReactive <- eventReactive(c(input$distributionplot, input$groupBlemish, df), {
     df_copy <- df  
     
