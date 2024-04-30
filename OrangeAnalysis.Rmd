@@ -10,7 +10,7 @@ knitr::opts_chunk$set(echo = TRUE)
 ```
 
 
-```{r cars}
+```{r}
 library(readr)
 df <- read_csv('./OrangeQualityAnalysis/data/OrangeQualityData.csv')
 ```
@@ -19,7 +19,7 @@ df <- read_csv('./OrangeQualityAnalysis/data/OrangeQualityData.csv')
 library(dplyr)
 library(stringr)
 df1 <- df %>%
-  mutate(`Blemishes (Y/N)` = if_else(str_detect(`Blemishes (Y/N)`, 'Y'), 1, 0))
+  mutate(`Blemishes (Y/N)` = if_else(str_detect(`Blemishes (Y/N)`, 'Y'), "Y", "N"))
 
 # 1 = Yes blemish
 # 0 = No blemish
@@ -29,7 +29,7 @@ df1 <- df %>%
 library(nnet)
 
 # Fit multinomial logistic regression model
-multinom.obj <- multinom(Variety ~ `Size (cm)` + `Weight (g)` + `Brix (Sweetness)` + `pH (Acidity)` + `Softness (1-5)` + `HarvestTime (days)` + `Ripeness (1-5)` + `Blemishes (Y/N)` + `Quality (1-5)`, data = df1)
+multinom.obj <- multinom(`Brix (Sweetness)` ~ `Size (cm)` + `Weight (g)` + `pH (Acidity)` + `Softness (1-5)` + `HarvestTime (days)` + `Ripeness (1-5)` + `Blemishes (Y/N)` + `Quality (1-5)`, data = df1)
 
 test <- step(multinom.obj)
 
@@ -52,10 +52,81 @@ multinom.obj <- multinom(Variety ~ `Size (cm)` + `Brix (Sweetness)` + `pH (Acidi
 # install.packages("randomForest")
 library(randomForest)
 
+df1 <- df1 %>%
+  mutate(Blemish = if_else(str_detect(Blemish, 'Y'), 1, 0))
+
 
 set.seed(101)
-rfc <- randomForest(Sweetness ~ . -Variety, data = df1)
+rfc <- randomForest(Blemish ~ . -Variety, data = df1)
 getTree(rfc, 1, labelVar=TRUE)
 ```
+
+```{r}
+
+svmfit <- svm(as.factor(Blemish) ~ .-Variety - Color -Weight, data = df1, kernel = "linear", cost = 0.1, scale = FALSE, max_iter = 1000)
+summary(svmfit)
+```
+
+```{r}
+x <- df1 %>%
+  select(-c("Variety", "Color", "Weight"))
+y <- df1 %>%
+  select("Blemish")
+make.grid = function(x, n = 75) {
+  grange = apply(x, 2, range)
+  x1 = seq(from = grange[1,1], to = grange[2,1], length = n)
+  x2 = seq(from = grange[1,2], to = grange[2,2], length = n)
+  expand.grid(X1 = x1, X2 = x2)
+}
+xgrid = make.grid(x)
+xgrid[1:10,]
+```
+
+```{r}
+# Extract coefficients
+w <- t(svmfit$coefs) %*% svmfit$SV
+b <- -svmfit$rho
+
+# Plot data points
+# Correcting the exclusion of the "Variety" column
+plot(df1[, !names(df1) %in% c("Variety", "Color", "Weight")], col = as.factor(df1$Blemish), pch = 20)
+
+# Plot decision boundary
+abline(w[1]/w[2], -b/w[2], col = "red", lty = 2)
+
+# Add legend
+legend("topright", legend = levels(as.factor(df1$Blemish)), col = 1:2, pch = 1, title = "Blemish")
+
+
+```
+
+```{r}
+pairs(df1[, !names(df1) %in% c("Variety", "Color", "Weight", "Blemish")], 
+      col = as.factor(df1$Blemish))
+```
+
+```{r}
+library(MASS)
+
+# Create a parallel coordinates plot
+parcoord(df1[, !names(df1) %in% c("Variety", "Color", "Weight")], 
+         col = as.factor(df1$Blemish))
+```
+
+```{r}
+pred1=predict(rfc,type = "prob")
+library(ROCR)
+perf = prediction(pred1[,2], mydata$Creditability)
+# 1. Area under curve
+auc = performance(perf, "auc")
+auc
+# 2. True Positive and Negative Rate
+pred3 = performance(perf, "tpr","fpr")
+# 3. Plot the ROC curve
+plot(pred3,main="ROC Curve for Random Forest",col=2,lwd=2)
+abline(a=0,b=1,lwd=2,lty=2,col="gray")
+```
+
+
 
 

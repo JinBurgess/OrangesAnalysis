@@ -1,0 +1,181 @@
+
+
+```{r}
+library(readr)
+df <- read_csv('./data/OrangeQualityData.csv')
+```
+```{r}
+library(dplyr)
+library(stringr)
+
+colnames(df) <- c("Size", "Weight", "Sweetness",
+                  "Acidity", "Softness", "HarvestTime", 
+                  "Ripeness", "Color", "Variety", 
+                  "Blemishes", "Quality")
+df1 <- df %>%
+  mutate(Blemishes = if_else(str_detect(Blemishes, 'Y'), "Y", "N"))
+
+# df1 <- df %>%
+#   mutate(`Blemishes (Y/N)` = if_else(str_detect(`Blemishes (Y/N)`, 'Y'), 1, 0))
+# 1 = Yes blemish
+# 0 = No blemish
+```
+
+Categorical-Categorical
+
+contingency table
+```{r}
+my.chisq.test <- function(conting.table) {
+  # Calculate sums of rows and columns
+  # https://www.geeksforgeeks.org/mutating-column-in-dplyr-using-rowsums/
+  row.sums <- rowSums(conting.table)
+  col.sums <- colSums(conting.table)
+  total.sum <- sum(conting.table)
+  
+  # Calculate expected cell counts
+  # Eij = (ni * n.j)/n
+  # https://www.geeksforgeeks.org/outer-function-in-r/
+  expected <- outer(row.sums, col.sums) / total.sum
+  
+  # x^2 = E(observed - expected)^2/expected
+  # observed = continegency table 
+  chisq <- sum((conting.table - expected)^2 / expected)
+  
+  # Calculate degrees of freedom
+  deg.free <- (nrow(conting.table) - 1) * (ncol(conting.table) - 1)
+  
+  # Calculate p-value
+  p.value <- 1 - pchisq(chisq, df = deg.free)
+  
+  return(list(chi2 = chisq, p_value = p.value, df = deg.free))
+}
+```
+
+
+```{r}
+df_cateogrical <- df %>%
+  select(Blemishes, Color, Variety)
+```
+
+```{r}
+color_variety_table <- table(df_cateogrical$Variety, df_cateogrical$Color)
+row_sums <- rowSums(color_variety_table)
+col_sums <- colSums(color_variety_table)
+total_sum <- sum(color_variety_table)
+
+expected <- round(outer(row_sums, col_sums) / total_sum, 2)
+```
+
+```{r}
+chisq.test(color_variety_table)
+```
+
+```{r}
+ my.chisq.test(color_variety_table)
+```
+H0: Variety is independent of Blemishes
+Ha: Variety is dependent of Blemishes
+
+Reject H0
+
+```{r}
+blemish_variety_table <- table(df_cateogrical$Variety, df_cateogrical$Blemishes)
+my.chisq.test(blemish_variety_table)
+```
+H0: Color is independent of Variety
+Ha: Color is dependent of Variety
+
+Fail to reject H0
+
+```{r}
+blemish_color_table <- table(df_cateogrical$Color, df_cateogrical$Blemishes)
+my.chisq.test(blemish_color_table)
+```
+H0: Color is independent of Blemishes
+Ha: Color is dependent of Blemishes
+
+Fail to reject H0
+
+
+```{r}
+color_variety_table
+```
+
+```{r}
+expected
+```
+
+```{r}
+library(ggplot2)
+blemish_variety_df <- as.data.frame(blemish_variety_table)%>% 
+  mutate(prop = round(Freq/sum(Freq),2))
+
+blemish_variety_df
+```
+
+```{r}
+blemish_variety_df%>%
+  ggplot(aes(x = Var2, y = prop, fill = Var2))+
+  geom_col() + facet_wrap(~Var1) + theme_minimal()
+```
+
+```{r}
+blemish_color_df <- as.data.frame(blemish_color_table)%>% 
+  mutate(prop = round(Freq/sum(Freq),2))
+
+blemish_color_df
+```
+
+```{r}
+blemish_color_df%>%
+  ggplot(aes(x = Var2, y = prop, fill = Var2))+
+  geom_col() + facet_wrap(~Var1) + theme_minimal()
+```
+
+```{r}
+color_variety_df <- as.data.frame(color_variety_table)%>% 
+  mutate(prop = round(Freq/sum(Freq),2))
+
+color_variety_df
+```
+
+```{r}
+color_variety_df%>%
+  ggplot(aes(x = Var2, y = prop, fill = Var2))+
+  geom_col() + facet_wrap(~Var1) + theme_minimal()
+```
+
+********
+
+Multi-Linear Regression
+
+```{r}
+library(tidyverse)
+library(caret)
+df_matrix <- df %>%
+    select_if(is.numeric) %>%
+    cor(.)
+
+df_matrix
+```
+
+```{r}
+library(nnet)
+
+# Fit multinomial logistic regression model
+multinom.obj <- multinom(Sweetness ~ Size + Weight + Acidity + Softness + HarvestTime + Ripeness + Blemishes, data = df1)
+
+test <- step(multinom.obj)
+```
+
+
+```{r}
+library(nnet)
+
+# Fit multinomial logistic regression model
+multinom.obj <- multinom(Sweetness ~Size + Weight + Acidity + Softness + HarvestTime + Ripeness + Blemishes + Quality, data = df1)
+
+test <- step(multinom.obj)
+```
+
+
