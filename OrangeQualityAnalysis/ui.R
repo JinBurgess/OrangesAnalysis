@@ -10,101 +10,114 @@ shinyUI(
                       htmlOutput("overview.content")), # tabPanel Overview
              tabPanel("Dataset",
                       dataTableOutput("dataset")),
-             tabPanel("DataVis",
+             tabPanel("Exploratory Analysis",
+                      fluidRow(
+                        box(width = 6,
+                            status = "info", title = "Predictor Distribution", solidHeader = TRUE, collapsible = TRUE,
+                            selectInput(inputId = "distributionplot", label = "Select Variable:",
+                              choices = colnames(df), selected = "Variety"
+                            ), # selectInput
+                            conditionalPanel("input.distributionplot =='Blemish'",
+                                             selectInput("groupBlemish", "Group Choices",
+                                                         choices=c("Group", "Separate"),
+                                                         selected = "Separate", multiple=FALSE)
+                            ), # conditional
+                            plotOutput("predictorDist")
+                        ),
+                        box(width = 6,
+                            status = "info", title = "Smooth Distribution", solidHeader = TRUE, collapsible = TRUE,
+                            selectInput(inputId = "smoothdist", label = "Select Variable:", choices = colnames(df), selected = "Size"
+                            ), # selectInput
+                            plotOutput("predictorSmooth")
+                        ),
+                        box(width = 6,
+                            status = "info", title = "Correlation Matrix", solidHeader = TRUE, collapsible = TRUE,
+                            plotOutput("corrmatrix")
+                        ),
+                        box(width = 6,
+                            status = "info", title = "Predictor ScatterPlot", solidHeader = TRUE, collapsible = TRUE,
+                            selectInput(inputId = "scatterplot_x", label = "Select Explanatory Variable:",
+                              choices = colnames(df), selected = "Size"
+                            ), # selectInput
+                            selectInput(inputId = "scatterplot_y", label = "Select Response Variable:", 
+                                        choices = colnames(df), selected = "Weight"
+                            ),
+                            plotOutput("predictorScatter")
+                        ),
+                        box(width = 4,
+                            status = "warning", title = "Data Frame", solidHeader = TRUE, collapsible = TRUE,
+                            footer = "Read Remotely from File",
+                            tableOutput("mydata")
+                        )
+                      )),
+             tabPanel("Supervised Machine Learning",
                       dashboardPage(
-                        dashboardHeader(title = "Exploratory Analysis"),
+                        dashboardHeader(title = ""),
                         dashboardSidebar(
                           sidebarMenu(
-                            menuItem("Distribution", tabName = "dataDist", icon = icon("bar-chart")),
-                            menuItem("Supervised Learning", tabName = "supervised", icon = icon("dashboard"),
-                            menuSubItem("Random Forest", tabName = "rfc"),
-                            menuSubItem("Support Vector Machine", tabName = "svm"),
-                            menuSubItem("Logistic Regression", tabName = "regress")
+                            menuItem("Random Forest", tabName = "rfc"),
+                            menuItem("Support Vector Machine", tabName = "svm"),
+                            menuItem("Logistic Regression", tabName = "regress")
                             )
-                          )
                       ),
                         dashboardBody(
                           tabItems(
-                            tabItem(tabName = "dataDist", 
+                            tabItem(tabName = "rfc",
                                     fluidRow(
-                                      column(width = 4,
-                                             selectInput(
-                                               inputId = "distributionplot",
-                                               label = "Select Variable:",
-                                               choices = colnames(df),
-                                               selected = "Variety"
-                                             ), # selectInput
-                                             conditionalPanel("input.distributionplot =='Blemish'", 
-                                                              selectInput("groupBlemish", "Group Choices", 
-                                                                          choices=c("Group", "Separate"), 
-                                                                          selected = "Separate", multiple=FALSE)
-                                             ) # conditional
-                                      ), # column inputs
-                                      column(width = 8,
-                                             plotOutput("predictorDist")
-                                      ) # column plot
-                                    ) # fluidRow
-                            ), # tabItem dataDist
-                            tabItem(tabName = "rfc", 
-                                    fluidRow(
-                                      column(width = 4,
-                                             numericInput(inputId = "rfcestimators",
-                                                          label = "Select n_estimators:",
+                                      sidebarLayout(
+                                        sidebarPanel(
+                                             numericInput(inputId = "rfcestimators", label = "Select n_estimators:",
                                                           value = 1, min = 1, max = NA, step = 1
                                                           ), # numericInput n_estimator
-                                             numericInput(inputId = "rfcdepth",
-                                                          label = "Select max depth:",
-                                                          value = NULL, min = 1, max = NA, step = 1
-                                                          ), # numericInput max_depth
-                                             numericInput(inputId = "rfcsamplesplit",
-                                                          label = "Select min samples split:",
-                                                          value = NULL, min = 1, max = NA, step = 1
-                                                          ), # numericInput min_samples_split
-                                             numericInput(inputId = "rfcsampleleaf",
-                                                          label = "Select min samples leaf:",
+                                             numericInput(inputId = "rfcsampleleaf", label = "Select min samples leaf:",
                                                           value = NULL, min = 1, max = NA, step = 1
                                                           ), # numericInput min_samples_leaf
-                                             prettyRadioButtons(inputId = "rfcmaxfeature",
-                                                                label = "Select max features:",
+                                             prettyRadioButtons(inputId = "rfcmaxfeature", label = "Select max features:",
                                                                 choices = c("sqrt", "log2", "None"),
                                                                 selected = "None", inline = TRUE
                                                                 ), # numericInput max_features
-                                             numericInput(inputId = "rfcmaxleafnodes",
-                                                          label = "Select max leaf node:",
+                                             numericInput(inputId = "rfcmaxleafnodes", label = "Select max leaf node:",
                                                           value = NULL, min = 2, max = NA, step = 1
                                                           ), # numericInput max_leaf_node
                                              numericInput(inputId = "rfcmaxsamples",
                                                           label = "Select max samples:",
                                                           value = NULL, min = 1, max = NA, step = 1
                                                           ) # numericInput max_samples
-                                             ), # column
-                                      column(width = 8,
-                                             dataTableOutput("rfcOutput")
-                                      ) # column output
-                                    ) # fluid row
+                                             ), # sidebarPanel
+                                      mainPanel(
+                                        tabsetPanel(
+                                          tabPanel("Random Forest Output",
+                                                   box(width = 12, dataTableOutput("rfcOutput", height=550))
+                                          ),
+                                          tabPanel("Random Forest Tree",
+                                                   box(width = 12, renderPlot("rfcPlot", height = 500)))
+                                        ) #tabsetPanel
+                                      ) # mainPanel
+                                      ) # sidebarPanel
+                            ) # fluid row
                             ),# tabItem rfc
-                            tabItem(tabName = "svm", 
-                                    fluidRow(    
+                            tabItem(tabName = "svm",
+                                    fluidRow(
                                       sidebarLayout(
                                         sidebarPanel(
-                                          prettyRadioButtons("kernel", "Select Kernal Type:", 
+                                          prettyRadioButtons("kernel", "Select Kernal Type:",
                                                              choices=list("Linear"="linear", "Polynomial"="poly", "Gaussian"="rgb")
                                           ),
-                                          conditionalPanel("input.kernel =='linear'", 
+                                          conditionalPanel("input.kernel =='linear'",
                                                            numericInput(inputId = "cost_linear", label = "Select Cost:", value = NULL, min = 0.01, max = NA)
                                           ),
-                                          conditionalPanel("input.kernel =='poly'", 
+                                          conditionalPanel("input.kernel =='poly'",
                                                            numericInput(inputId = "poly_degree",
                                                                         label = "Select Degree:", value = NULL, min = 2, max = NA
                                                                         ), # numericInput degree
                                                            numericInput(inputId = "cost_poly",
                                                                         label = "Select Cost:",value = NULL, min = 0.01, max = NA
                                                                         ), # numericInput cost_poly
-                                                           numericInput(inputId = "poly_gamma", 
+                                                           numericInput(inputId = "poly_gamma",
                                                                         label = "Select Gamma:", value = NULL, min = 0.01, max = NA
                                                                         ) # numericInput gamma),
                                           ),
-                                          conditionalPanel("input.kernel =='rgb'", 
+                                          conditionalPanel("input.kernel =='rgb'",
                                                            numericInput(inputId = "cost_rgb",
                                                                         label = "Select Cost:", value = NULL, min = 0.01, max = NA
                                                                         ), # numericInput cost_rbf
@@ -114,17 +127,27 @@ shinyUI(
                                           )
                                         ), # sidebarPanel
                                         mainPanel(
-                                          plotOutput("svmOutput", height=550)
+                                          tabsetPanel(
+                                            tabPanel("SVM Output",
+                                                     box(width = 12, plotOutput("svmOutput", height=550))
+                                                     ),
+                                            tabPanel("Happiness World Satisfication", 
+                                                     box(width = 12, htmlOutput("Happiness.World.Satisfaction"))
+                                                     ),
+                                            tabPanel(" Analyze and Predict GDP",
+                                                     box(width = 12, htmlOutput("Analyze.and.Predict"))
+                                                     )
+                                            )
                                         ) # mainPanel
                                       ) # sidebarLayout
                                     ) # fluid row
                             ), # tabItem svm
                             tabItem("regress",
-                                    fluidPage(  
+                                    fluidPage(
                                         sidebarLayout(
                                           sidebarPanel(
                                           ), #sidebarPanel
-                                          
+
                                           mainPanel(
                                             plotOutput("regressOutput", height=550)
                                           ) # mainPanel regress
@@ -134,28 +157,6 @@ shinyUI(
                             ) # tabItems
                           ) # dashboard body
                         ) # dashboard page
-             ), # tab Panel 
-             tabPanel("Statistics",
-                      dashboardPage(
-                        dashboardHeader(title = "Statistical Analysis"),
-                        dashboardSidebar(
-                          sidebarMenu(
-                            menuItem("Initial Analysis", tabName = "initial", icon = icon("bar-chart")),
-                            menuItem("Categorical", tabName = "cat", icon = icon("bar-chart")),
-                            menuItem("Multi Linear Regression", tabName = "mlr", icon = icon("dashboard"),
-                                     menuSubItem("Model Diagnostics", tabName = "diagnostics"),
-                                     menuSubItem("Influential Observations", tabName = "influential")),
-                            menuItem("Multi Logistic Regression", tabName = "mlogr", icon = icon("dashboard"))
-                          ) # sidebarMenu
-                        ), # dashboardSidebar
-                        dashboardBody(
-                          # tabItems(
-                          #   tabItem(tabName = "initial",
-                          #           rende)
-                          # )
-                        )
-                        
-                      ) # dashboardPage
-             ) # tabPanel
+             ) # tab Panel
   ) # navbarPage
 ) # shinyUI

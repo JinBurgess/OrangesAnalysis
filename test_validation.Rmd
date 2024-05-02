@@ -128,5 +128,12 @@ abline(a=0,b=1,lwd=2,lty=2,col="gray")
 ```
 
 
-
+```{r}
+library(GGally)
+    df_copy <- df %>%
+      mutate(Blemish = if_else(str_detect(Blemish, 'Y'), 1, 0))%>%
+      select(-c(Variety, Color))
+    
+    ggcorr(df_copy)
+```
 
