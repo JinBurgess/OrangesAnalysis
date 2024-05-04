@@ -1,0 +1,231 @@
+
+
+```{r}
+library(readr)
+df <- read_csv('./data/OrangeQualityData.csv')
+```
+```{r}
+library(dplyr)
+library(stringr)
+
+colnames(df) <- c("Size", "Weight", "Sweetness",
+                  "Acidity", "Softness", "HarvestTime", 
+                  "Ripeness", "Color", "Variety", 
+                  "Blemishes", "Quality")
+df1 <- df %>%
+  mutate(Blemishes = if_else(str_detect(Blemishes, 'Y'), "Y", "N"))%>%
+  select(-Variety)
+
+# df1 <- df %>%
+#   mutate(`Blemishes (Y/N)` = if_else(str_detect(`Blemishes (Y/N)`, 'Y'), 1, 0))
+# 1 = Yes blemish
+# 0 = No blemish
+```
+
+Categorical-Categorical
+
+contingency table
+```{r}
+my.chisq.test <- function(conting.table) {
+  # Calculate sums of rows and columns
+  # https://www.geeksforgeeks.org/mutating-column-in-dplyr-using-rowsums/
+  row.sums <- rowSums(conting.table)
+  col.sums <- colSums(conting.table)
+  total.sum <- sum(conting.table)
+  
+  # Calculate expected cell counts
+  # Eij = (ni * n.j)/n
+  # https://www.geeksforgeeks.org/outer-function-in-r/
+  expected <- outer(row.sums, col.sums) / total.sum
+  
+  # x^2 = E(observed - expected)^2/expected
+  # observed = continegency table 
+  chisq <- sum((conting.table - expected)^2 / expected)
+  
+  # Calculate degrees of freedom
+  deg.free <- (nrow(conting.table) - 1) * (ncol(conting.table) - 1)
+  
+  # Calculate p-value
+  p.value <- 1 - pchisq(chisq, df = deg.free)
+  
+  return(list(chi2 = chisq, p_value = p.value, df = deg.free))
+}
+```
+
+
+```{r}
+df_cateogrical <- df1 %>%
+  select(Blemishes, Color)
+```
+
+
+```{r}
+blemish_color_table <- table(df_cateogrical$Color, df_cateogrical$Blemishes)
+my.chisq.test(blemish_color_table)
+```
+H0: Color is independent of Blemishes
+Ha: Color is dependent of Blemishes
+
+Fail to reject H0
+
+```{r}
+#create density curve
+curve(dchisq(x, df = 4), from = 0, to = 25,
+main = 'Chi-Square Distribution (df = 4)',
+ylab = 'Density',
+lwd = 2)
+
+#create vector of x values
+x_vector <- seq(5.86, 25)
+
+#create vector of chi-square density values
+p_vector <- dchisq(x_vector, df = 4)
+
+#fill in portion of the density plot from 0 to 40
+polygon(c(x_vector, rev(x_vector)), c(p_vector, rep(0, length(p_vector))),
+        col = adjustcolor('blue', alpha=0.3), border = NA)
+
+abline(v = 4, col = "red", lwd = 3)
+```
+
+
+```{r}
+blemish_color_table
+```
+
+```{r}
+  row.sums <- rowSums(blemish_color_table)
+  col.sums <- colSums(blemish_color_table)
+  total.sum <- sum(blemish_color_table)
+  
+  # Calculate expected cell counts
+  # Eij = (ni * n.j)/n
+  # https://www.geeksforgeeks.org/outer-function-in-r/
+  expected <- outer(row.sums, col.sums) / total.sum
+  
+  round(expected, 2)
+```
+
+$$
+\frac{\text{(Observed - Expected)}^2}{\text{Expected}}
+$$
+
+```{r}
+chisq <- ((blemish_color_table - expected)^2 / expected)
+round(chisq, 3)
+```
+
+```{r}
+library(ggplot2)
+
+blemish_color_df <- as.data.frame(blemish_color_table)%>% 
+  mutate(prop = round(Freq/sum(Freq),2))
+
+colnames(blemish_color_df) <- c("Color", "Blemishes", "Frequency", "Proportion")
+
+```
+
+
+```{r}
+blemish_color_df%>%
+  ggplot(aes(x = Blemishes, y = Proportion, fill = Blemishes))+
+  geom_col() + facet_wrap(~Color) + guides(fill = "none") + theme_minimal() +
+  theme(axis.line.y = element_blank())
+```
+
+$$
+H_0 : \text{Orange color is independent of blemish presence} \\
+H_a : \text{Orange color is dependent of blemish presence}
+$$
+********
+
+# Multi-Linear Regression
+
+
+Correlation Matrix
+```{r}
+library(tidyverse)
+library(caret)
+df_matrix <- df1 %>%
+    select_if(is.numeric) %>%
+    cor(.)
+round(df_matrix,2)
+```
+
+$$
+Sweetness_i \sim \beta_0 + \beta_1 X_{\text{size i}} + \beta_2 X_{\text{weight i}} + \beta_3 X_{\text{Acidity i}} + 
+\beta_4 X_{\text{Softness i}} + \beta_5 X_{\text{HarvestTime i}} + \\
+\beta_6 X_{\text{ripness i}} + \beta_7 D_{\text{Color.LightOrange i}} + \beta_8 D_{\text{Color.Orange i}} +
+\beta_9 D_{\text{Color.OrangeRed i}} + \\
+\beta_{10} D_{\text{Color.YellowOrange i}} + 
+\beta_{11} D_{\text{BlemishesY i}}+ \beta_{12} X_{\text{Quallity i}} + \epsilon_i, \epsilon_i \sim_{\text{iid}} N(0, \sigma^2) \\
+$$
+
+$$
+\text{Baseline: color is deep orange}\\
+D_{\text{Color.LightOrange i}} = \{ \text{1, if color is light orange otherwise, 0}\} \\
+D_{\text{Color.Orange i}} = \{ \text{1, if color is orange otherwise, 0}\}\\
+D_{\text{Color.OrangeRed i}} = \{ \text{1, if color is orange red otherwise, 0}\}\\
+D_{\text{Color.YellowOrange i}} = \{ \text{1, if color is yellow orange otherwise, 0}\}\\
+$$
+$$
+\text{Baseline: blemishes is No}\\
+D_{\text{BlemishesY i}} = \{ \text{1, if blemishes is Yes otherwise, 0}\}
+$$
+
+```{r}
+lm.obj <- lm(Sweetness ~ . -Quality, data = df1)
+summary(lm.obj)
+```
+
+```{r}
+lm.obj <- lm(Sweetness ~ . -Size -Quality, data = df1)
+summary(lm.obj)
+```
+
+```{r}
+df2 <- df1%>%
+  select(-c(Size, Quality, Blemishes, Ripeness))
+lm.obj <- lm(Sweetness ~ . , data = df2)
+summary(lm.obj)
+
+```
+
+VIF
+**based on VIF test there is no mulitcollinearity happening**
+```{r}
+library(car)
+vif(lm(Sweetness ~ . -Quality, data = df1))
+```
+```{r}
+df1 <- df %>%
+  mutate(Blemishes = if_else(str_detect(Blemishes, 'Y'), 1, 0)) %>%
+  select(-Variety)
+
+vif(lm(Sweetness ~ . -Quality - Color, data = df1))
+```
+
+
+**What ar we considering our cut off for splitting?**
+
+```{r}
+library(nnet)
+
+# Fit multinomial logistic regression model
+# multinom.obj <- multinom(Sweetness ~ Size + Weight + Acidity + Softness + HarvestTime + Ripeness + Blemishes, data = df1)
+multinom.obj <- multinom(Sweetness ~ . - Color, data = df1)
+
+test <- step(multinom.obj)
+```
+
+
+```{r}
+library(nnet)
+
+# Fit multinomial logistic regression model
+multinom.obj <- multinom(Sweetness ~ Size + Acidity + Softness + HarvestTime + Ripeness + Blemishes, data = df1)
+
+test <- step(multinom.obj)
+```
+
+
