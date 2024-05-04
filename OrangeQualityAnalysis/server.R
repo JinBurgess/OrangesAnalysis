@@ -134,14 +134,46 @@ shinyServer(function(input, output, session) {
     datatable(tree_df)
   }) # rfcOutput
 
-  output$rfcPlot <- renderPlot({
-    req(rfcReactive())
-    model <- rfcReactive()  
-    tree <- getTree(model, 1, labelVar=TRUE)
-    tree_df <- as.data.frame(tree)
+  # Server
+  server <- function(input, output) {
     
-    
-  })
+    output$rfcPlot <- renderPlot({
+      req(input$parent_node, input$max_depth)
+      
+      # Get the selected parent node
+      parent_node <- input$parent_node
+      
+      # Get the selected maximum depth
+      max_depth <- input$max_depth
+      
+      # Your random forest model function (rfcReactive) goes here
+      model <- rfcReactive()  
+      
+      # Extract the decision tree from the model
+      tree <- getTree(model, 1, labelVar = TRUE)
+      
+      # Convert the tree to a data frame
+      tree_df <- as.data.frame(tree)
+      
+      # Filter the tree to get the subtree starting from the selected parent node
+      sub_tree <- subset(tree_df, nodeID == parent_node | grepl(paste("^", parent_node, ".", sep = ""), nodeID))
+      
+      # Extract the left and right daughter nodes of the selected parent node
+      left_node <- sub_tree$subtree.left[1]
+      right_node <- sub_tree$subtree.right[1]
+      
+      # Filter the tree to get the subtree with left and right daughters
+      sub_tree <- subset(tree_df, nodeID %in% c(parent_node, left_node, right_node))
+      
+      # Create an rpart object from the subtree (Note: you need to replace 'formula', 'data', 'subset', and 'weights' with appropriate values)
+      rpart_tree <- rpart::rpart(formula = formula, data = data, subset = subset, weights = weights, ...)
+      
+      # Plot the decision tree with the selected maximum depth
+      rpart.plot(rpart_tree, fallen.leaves = TRUE, branch.lty = 3, yesno = 2, maxdepth = max_depth)
+    })
+  }
+  
+  
   svmReactive <- eventReactive(list(input$kernel, input$cost_linear, input$cost_poly, input$poly_gamma, input$poly_degree, input$cost_rgb, input$gamma_rgb), {
     df_copy <- df %>%
       mutate(Blemish = if_else(str_detect(Blemish, 'Y'), 1, 0))

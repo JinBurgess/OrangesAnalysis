@@ -16,6 +16,70 @@ df <- read_csv('./OrangeQualityAnalysis/data/OrangeQualityData.csv')
 ```
 
 ```{r}
+library(readr)
+library(dplyr)
+library(caret)
+library(randomForest)
+library(e1071)
+library(stringr)
+colnames(df) <- c("Size", "Weight", "Sweetness",
+                  "Acidity", "Softness", "HarvestTime", 
+                  "Ripeness", "Color", "Variety", 
+                  "Blemish", "Quality")
+df_copy <- df %>%
+      mutate(Blemish = if_else(str_detect(Blemish, 'Y'), 1, 0))
+
+rfc_model <- randomForest(as.factor(Blemish) ~ . - Variety,
+                                data = df_copy,
+                                ntree = 1,
+                                mtry = ncol(df_copy), # related to max_feature
+                                nodesize = 3,
+                                maxnodes = 2,
+                                samplesize = 2,
+                                replace = TRUE)
+
+rfc_model
+```
+```{r}
+tree <- getTree(rfc_model, 1, labelVar=TRUE)
+
+    # # # Convert the tree structure to a data frame
+tree_df <- as.data.frame(tree)
+
+    # Return the data frame to be rendered in the UI
+datatable(tree_df)
+```
+```{r}
+library(rpart)
+library(rpart.plot)
+
+max_depth = 3
+parent_node = 1
+    
+tree_structure <- getTree(tree_df, 1, labelVar = TRUE)
+
+# Convert the tree structure to an rpart object
+rpart_tree <- rpart::rpart(as.formula(tree_structure$frame$yval2 ~ .), 
+                           data = as.data.frame(tree_structure$frame), 
+                           control = rpart::rpart.control(minsplit = 1))
+
+# Plot the decision tree with the selected maximum depth
+rpart.plot(rpart_tree, fallen.leaves = TRUE, branch.lty = 3, yesno = 2, maxdepth = max_depth)
+```
+```{r}
+rf_model <- randomForest(mpg ~ ., data = mtcars)
+tree <- getTree(rf_model, 1)
+
+# Convert the tree to an rpart object
+rpart_tree <- rpart::rpart(formula = as.formula(tree$frame$yval2 ~ .),
+                           data = as.data.frame(tree$frame), 
+                           control = rpart::rpart.control(minsplit = 1))
+
+# Plot the decision tree
+rpart.plot(rpart_tree)
+```
+
+```{r}
 library(dplyr)
 library(stringr)
 df1 <- df %>%

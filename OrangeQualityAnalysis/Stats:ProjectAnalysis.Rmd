@@ -13,7 +13,8 @@ colnames(df) <- c("Size", "Weight", "Sweetness",
                   "Ripeness", "Color", "Variety", 
                   "Blemishes", "Quality")
 df1 <- df %>%
-  mutate(Blemishes = if_else(str_detect(Blemishes, 'Y'), "Y", "N"))
+  mutate(Blemishes = if_else(str_detect(Blemishes, 'Y'), "Y", "N"))%>%
+  select(-Variety)
 
 # df1 <- df %>%
 #   mutate(`Blemishes (Y/N)` = if_else(str_detect(`Blemishes (Y/N)`, 'Y'), 1, 0))
@@ -53,39 +54,10 @@ my.chisq.test <- function(conting.table) {
 
 
 ```{r}
-df_cateogrical <- df %>%
-  select(Blemishes, Color, Variety)
+df_cateogrical <- df1 %>%
+  select(Blemishes, Color)
 ```
 
-```{r}
-color_variety_table <- table(df_cateogrical$Variety, df_cateogrical$Color)
-row_sums <- rowSums(color_variety_table)
-col_sums <- colSums(color_variety_table)
-total_sum <- sum(color_variety_table)
-
-expected <- round(outer(row_sums, col_sums) / total_sum, 2)
-```
-
-```{r}
-chisq.test(color_variety_table)
-```
-
-```{r}
- my.chisq.test(color_variety_table)
-```
-H0: Variety is independent of Blemishes
-Ha: Variety is dependent of Blemishes
-
-Reject H0
-
-```{r}
-blemish_variety_table <- table(df_cateogrical$Variety, df_cateogrical$Blemishes)
-my.chisq.test(blemish_variety_table)
-```
-H0: Color is independent of Variety
-Ha: Color is dependent of Variety
-
-Fail to reject H0
 
 ```{r}
 blemish_color_table <- table(df_cateogrical$Color, df_cateogrical$Blemishes)
@@ -98,49 +70,32 @@ Fail to reject H0
 
 
 ```{r}
-color_variety_table
+blemish_color_table
 ```
 
 ```{r}
-expected
+  row.sums <- rowSums(blemish_color_table)
+  col.sums <- colSums(blemish_color_table)
+  total.sum <- sum(blemish_color_table)
+  
+  # Calculate expected cell counts
+  # Eij = (ni * n.j)/n
+  # https://www.geeksforgeeks.org/outer-function-in-r/
+  expected <- outer(row.sums, col.sums) / total.sum
+  
+  round(expected, 2)
 ```
 
 ```{r}
 library(ggplot2)
-blemish_variety_df <- as.data.frame(blemish_variety_table)%>% 
-  mutate(prop = round(Freq/sum(Freq),2))
 
-blemish_variety_df
-```
-
-```{r}
-blemish_variety_df%>%
-  ggplot(aes(x = Var2, y = prop, fill = Var2))+
-  geom_col() + facet_wrap(~Var1) + theme_minimal()
-```
-
-```{r}
 blemish_color_df <- as.data.frame(blemish_color_table)%>% 
   mutate(prop = round(Freq/sum(Freq),2))
-
-blemish_color_df
 ```
+
 
 ```{r}
 blemish_color_df%>%
-  ggplot(aes(x = Var2, y = prop, fill = Var2))+
-  geom_col() + facet_wrap(~Var1) + theme_minimal()
-```
-
-```{r}
-color_variety_df <- as.data.frame(color_variety_table)%>% 
-  mutate(prop = round(Freq/sum(Freq),2))
-
-color_variety_df
-```
-
-```{r}
-color_variety_df%>%
   ggplot(aes(x = Var2, y = prop, fill = Var2))+
   geom_col() + facet_wrap(~Var1) + theme_minimal()
 ```
@@ -152,7 +107,7 @@ Multi-Linear Regression
 ```{r}
 library(tidyverse)
 library(caret)
-df_matrix <- df %>%
+df_matrix <- df1 %>%
     select_if(is.numeric) %>%
     cor(.)
 
@@ -163,7 +118,8 @@ df_matrix
 library(nnet)
 
 # Fit multinomial logistic regression model
-multinom.obj <- multinom(Sweetness ~ Size + Weight + Acidity + Softness + HarvestTime + Ripeness + Blemishes, data = df1)
+# multinom.obj <- multinom(Sweetness ~ Size + Weight + Acidity + Softness + HarvestTime + Ripeness + Blemishes, data = df1)
+multinom.obj <- multinom(Sweetness ~ . - Color, data = df1)
 
 test <- step(multinom.obj)
 ```

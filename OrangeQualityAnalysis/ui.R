@@ -87,9 +87,11 @@ shinyUI(
                                       mainPanel(
                                         tabsetPanel(
                                           tabPanel("Random Forest Output",
-                                                   box(width = 12, dataTableOutput("rfcOutput", height=550))
+                                                   box(width = 12, dataTableOutput("rfcOutput"))
                                           ),
                                           tabPanel("Random Forest Tree",
+                                                   numericInput("parent_node", "Select Parent Node", min = 1, max = NA, value = 1),
+                                                   numericInput("max_depth", "Maximum Depth:", min = 1, max = 10, value = 3),
                                                    box(width = 12, renderPlot("rfcPlot", height = 500)))
                                         ) #tabsetPanel
                                       ) # mainPanel
