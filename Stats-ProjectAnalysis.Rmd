@@ -2,7 +2,7 @@
 
 ```{r}
 library(readr)
-df <- read_csv('./data/OrangeQualityData.csv')
+df <- read_csv('./OrangeQualityAnalysis/data/OrangeQualityData.csv')
 ```
 ```{r}
 library(dplyr)
@@ -23,7 +23,7 @@ df1 <- df %>%
 ```
 
 Categorical-Categorical
-
+***********************************************************
 contingency table
 ```{r}
 my.chisq.test <- function(conting.table) {
@@ -137,10 +137,9 @@ $$
 H_0 : \text{Orange color is independent of blemish presence} \\
 H_a : \text{Orange color is dependent of blemish presence}
 $$
-********
 
-# Multi-Linear Regression
-
+Multi-Linear Regression
+***********************************************************
 
 Correlation Matrix
 ```{r}
@@ -152,6 +151,8 @@ df_matrix <- df1 %>%
 round(df_matrix,2)
 ```
 
+Written Equations
+***********************************************************
 $$
 Sweetness_i \sim \beta_0 + \beta_1 X_{\text{size i}} + \beta_2 X_{\text{weight i}} + \beta_3 X_{\text{Acidity i}} + 
 \beta_4 X_{\text{Softness i}} + \beta_5 X_{\text{HarvestTime i}} + \\
@@ -173,6 +174,8 @@ $$
 D_{\text{BlemishesY i}} = \{ \text{1, if blemishes is Yes otherwise, 0}\}
 $$
 
+Multiple Linear Regression
+***********************************************************
 ```{r}
 lm.obj <- lm(Sweetness ~ . -Quality, data = df1)
 summary(lm.obj)
@@ -186,17 +189,33 @@ summary(lm.obj)
 ```{r}
 df2 <- df1%>%
   select(-c(Size, Quality, Blemishes, Ripeness))
-lm.obj <- lm(Sweetness ~ . , data = df2)
+lm.obj <- lm(Sweetness ~ ., data = df1)
 summary(lm.obj)
-
 ```
 
+Full modeling
+$$
+Sweetness_i \sim \beta_0 + \beta_1 X_{\text{weight i}} + \beta_3 X_{\text{Acidity i}} + 
+\beta_4 X_{\text{Softness i}} + \beta_5 X_{\text{HarvestTime i}} + \\
+\beta_6 D_{\text{Color.LightOrange i}} + \beta_7 D_{\text{Color.Orange i}} +
+\beta_8 D_{\text{Color.OrangeRed i}} + \\
+\beta_{9} D_{\text{Color.YellowOrange i}} + \epsilon_i, \epsilon_i \sim_{\text{iid}} N(0, \sigma^2) \\
+$$
+Fitted
+$$
+\hat{Sweetness} = 22.028- 0.006(weight) -1.448(Acidity) - 0.414 (Softness) - 0.121(HarvestTime) \\
+-3.762(D_{\text{Color.LightOrange}}) -2.315(D_{\text{Color.Orange}}) -
+1.114 (D_{\text{Color.OrangeRed}}) -3.825 (D_{\text{Color.YellowOrange}})
+$$
 VIF
+***********************************************************
+
 **based on VIF test there is no mulitcollinearity happening**
 ```{r}
 library(car)
-vif(lm(Sweetness ~ . -Quality, data = df1))
+vif(lm(Sweetness ~ ., data = df1))
 ```
+
 ```{r}
 df1 <- df %>%
   mutate(Blemishes = if_else(str_detect(Blemishes, 'Y'), 1, 0)) %>%
@@ -205,6 +224,59 @@ df1 <- df %>%
 vif(lm(Sweetness ~ . -Quality - Color, data = df1))
 ```
 
+Interaction Term
+***********************************************************
+```{r}
+ggplot(data=df1, aes(Weight, Sweetness, col=Color)) + 
+  geom_smooth(method="lm", se = FALSE) + theme_minimal()
+
+ggplot(data=df1, aes(Acidity, Sweetness, col=Color)) + 
+  geom_smooth(method="lm", se = FALSE) + theme_minimal()
+
+ggplot(data=df1, aes(Softness, Sweetness, col=Color)) + 
+  geom_smooth(method="lm", se = FALSE) + theme_minimal()
+
+ggplot(data=df1, aes(HarvestTime, Sweetness, col=Color)) + 
+  geom_smooth(method="lm", se = FALSE) + theme_minimal()
+```
+
+```{r}
+lm.obj <- lm(Sweetness ~
+     Weight*Color + Weight*Acidity + Weight*Softness + Weight*HarvestTime +
+     Color*Acidity + Color*Softness + Color:HarvestTime + 
+     Acidity*Softness + Acidity*HarvestTime + Softness*HarvestTime, data = df2)
+
+summary(lm.obj)
+```
+
+```{r}
+lm.obj <- lm(Sweetness ~
+     Weight*Color + Weight*Acidity + Weight*Softness + Weight*HarvestTime +
+     Color*Acidity + Color*Softness + Color:HarvestTime + 
+     Acidity*Softness + Acidity*HarvestTime + Softness*HarvestTime, data = df2)
+
+step(lm.obj, direction = "both")
+```
+
+```{r}
+lm.obj <- lm(Sweetness ~ Weight + Color + Acidity + Softness + 
+    HarvestTime + Weight:Color + Weight:Acidity + Color:Acidity + 
+    Color:HarvestTime + Softness:HarvestTime, data = df2)
+
+null.obj <- lm(Sweetness ~., data = df2)
+
+anova(null.obj, lm.obj)
+```
+```{r}
+lm.obj <- lm(Sweetness ~ Weight + Color + Acidity + Softness + 
+    HarvestTime + Weight:Color + Weight:Acidity + Color:Acidity + 
+    Color:HarvestTime + Softness:HarvestTime, data = df2)
+
+summary(lm.obj)
+```
+
+Multiple Logistic Regression
+***********************************************************
 
 **What ar we considering our cut off for splitting?**
 
@@ -213,7 +285,7 @@ library(nnet)
 
 # Fit multinomial logistic regression model
 # multinom.obj <- multinom(Sweetness ~ Size + Weight + Acidity + Softness + HarvestTime + Ripeness + Blemishes, data = df1)
-multinom.obj <- multinom(Sweetness ~ . - Color, data = df1)
+multinom.obj <- multinom(Blemishes ~ ., data = df1)
 
 test <- step(multinom.obj)
 ```
@@ -223,9 +295,9 @@ test <- step(multinom.obj)
 library(nnet)
 
 # Fit multinomial logistic regression model
-multinom.obj <- multinom(Sweetness ~ Size + Acidity + Softness + HarvestTime + Ripeness + Blemishes, data = df1)
+multinom.obj <- multinom(Blemishes ~ Size + Acidity + Softness + Ripeness + Weight, data = df1)
 
-test <- step(multinom.obj)
+summary(multinom.obj)
 ```
 
 
