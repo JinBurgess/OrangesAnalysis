@@ -275,6 +275,47 @@ lm.obj <- lm(Sweetness ~ Weight + Color + Acidity + Softness +
 summary(lm.obj)
 ```
 
+Diagnostic Plots
+***********************************************************
+```{r}
+plot(lm.obj)
+```
+```{r}
+lm.obj <- lm(sqrt(Sweetness) ~ Weight + Color + Acidity + Softness + 
+    HarvestTime + Weight:Color + Weight:Acidity + Color:Acidity + 
+    Color:HarvestTime + Softness:HarvestTime, data = df2)
+
+plot(lm.obj)
+```
+
+
+```{r}
+plot(hatvalues(lm.obj))
+```
+```{r}
+plot(lm.obj, which=4)
+```
+
+Influential Observations
+***********************************************************
+
+```{r}
+cat("RSE:", sigma(lm.obj), "\n")
+cat("Rˆ2:", summary(lm.obj)$r.squared, "\n")
+```
+
+```{r}
+advertising_minus_6 <- df2[-6, ]
+
+lm.obj_reduced <- lm(Sweetness ~ Weight + Color + Acidity + Softness + 
+    HarvestTime + Weight:Color + Weight:Acidity + Color:Acidity + 
+    Color:HarvestTime + Softness:HarvestTime, data = advertising_minus_6)
+
+cat("RSE:", sigma(lm.obj_reduced), "\n")
+cat("Rˆ2:", summary(lm.obj_reduced)$r.squared, "\n")
+```
+
+
 Multiple Logistic Regression
 ***********************************************************
 
