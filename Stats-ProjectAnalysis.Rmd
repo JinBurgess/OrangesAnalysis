@@ -199,7 +199,7 @@ Sweetness_i \sim \beta_0 + \beta_1 X_{\text{weight i}} + \beta_3 X_{\text{Acidit
 \beta_4 X_{\text{Softness i}} + \beta_5 X_{\text{HarvestTime i}} + \\
 \beta_6 D_{\text{Color.LightOrange i}} + \beta_7 D_{\text{Color.Orange i}} +
 \beta_8 D_{\text{Color.OrangeRed i}} + \\
-\beta_{9} D_{\text{Color.YellowOrange i}} + \epsilon_i, \epsilon_i \sim_{\text{iid}} N(0, \sigma^2) \\
+\beta_{9} D_{\text{Color.YellowOrange i}} + \epsilon_i, \epsilon_i \sim_{\text{ind}} N(0, \sigma^2) \\
 $$
 Fitted
 $$
@@ -326,9 +326,9 @@ library(nnet)
 
 # Fit multinomial logistic regression model
 # multinom.obj <- multinom(Sweetness ~ Size + Weight + Acidity + Softness + HarvestTime + Ripeness + Blemishes, data = df1)
-multinom.obj <- multinom(Blemishes ~ ., data = df1)
+log.obj <- glm(Blemishes ~ ., data = df1)
 
-test <- step(multinom.obj)
+test <- step(log.obj)
 ```
 
 
@@ -336,9 +336,9 @@ test <- step(multinom.obj)
 library(nnet)
 
 # Fit multinomial logistic regression model
-multinom.obj <- multinom(Blemishes ~ Size + Acidity + Softness + Ripeness + Weight, data = df1)
+log.obj <- glm(Blemishes ~ Size + Acidity + Softness + Ripeness + Weight, data = df1)
 
-summary(multinom.obj)
+summary(log.obj)
 ```
 
 
