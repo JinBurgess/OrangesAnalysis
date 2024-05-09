@@ -125,7 +125,6 @@ colnames(blemish_color_df) <- c("Color", "Blemishes", "Frequency", "Proportion")
 
 ```
 
-
 ```{r}
 blemish_color_df%>%
   ggplot(aes(x = Blemishes, y = Proportion, fill = Blemishes))+
@@ -149,6 +148,11 @@ df_matrix <- df1 %>%
     select_if(is.numeric) %>%
     cor(.)
 round(df_matrix,2)
+```
+VIF
+```{r}
+library(car)
+vif(lm(Sweetness ~ ., data = df1))
 ```
 
 Written Equations
@@ -177,57 +181,51 @@ $$
 Multiple Linear Regression
 ***********************************************************
 ```{r}
-lm.obj <- lm(Sweetness ~ . -Quality, data = df1)
-summary(lm.obj)
-```
-
-```{r}
-lm.obj <- lm(Sweetness ~ . -Size -Quality, data = df1)
-summary(lm.obj)
-```
-
-```{r}
-df2 <- df1%>%
-  select(-c(Size, Quality, Blemishes, Ripeness))
 lm.obj <- lm(Sweetness ~ ., data = df1)
 summary(lm.obj)
 ```
 
+AIC
+***********************************************************
+```{r}
+df2 <- df1%>%
+  select(Size, Acidity, Softness, Quality, Color, Sweetness)
+
+lm.obj <- lm(Sweetness ~., data = df2)
+step(lm.obj)
+```
+
+
 Full modeling
 $$
-Sweetness_i \sim \beta_0 + \beta_1 X_{\text{weight i}} + \beta_3 X_{\text{Acidity i}} + 
-\beta_4 X_{\text{Softness i}} + \beta_5 X_{\text{HarvestTime i}} + \\
-\beta_6 D_{\text{Color.LightOrange i}} + \beta_7 D_{\text{Color.Orange i}} +
-\beta_8 D_{\text{Color.OrangeRed i}} + \\
-\beta_{9} D_{\text{Color.YellowOrange i}} + \epsilon_i, \epsilon_i \sim_{\text{iid}} N(0, \sigma^2) \\
+Sweetness_i \sim \beta_0 + \beta_1 X_{\text{size i}} + \beta_2 X_{\text{Acidity i}} + \beta_3 X_{\text{Softness i}} + \\
+\beta_4 X_{\text{Quality i}} + \beta_5 D_{\text{Color.LightOrange i}} + \beta_6 D_{\text{Color.Orange i}} + \\
+\beta_7 D_{\text{Color.OrangeRed i}} + \beta_8 D_{\text{Color.YellowOrange i}} + \epsilon_i, \epsilon_i \sim_{\text{iid}} N(0, \sigma^2) \\
 $$
 Fitted
 $$
-\hat{Sweetness} = 22.028- 0.006(weight) -1.448(Acidity) - 0.414 (Softness) - 0.121(HarvestTime) \\
--3.762(D_{\text{Color.LightOrange}}) -2.315(D_{\text{Color.Orange}}) -
-1.114 (D_{\text{Color.OrangeRed}}) -3.825 (D_{\text{Color.YellowOrange}})
+\hat{Sweetness} = 17.629- 0.467(Size) -0.804(Acidity) - 0.313 (Softness) + 0.872(Quality) \\
+-2.806(D_{\text{Color.LightOrange}}) -1.806(D_{\text{Color.Orange}}) -
+0.982 (D_{\text{Color.OrangeRed}}) -3.331 (D_{\text{Color.YellowOrange}})
 $$
-VIF
+
+Incremental F-test of Categorical Variable
 ***********************************************************
-
-**based on VIF test there is no mulitcollinearity happening**
-```{r}
-library(car)
-vif(lm(Sweetness ~ ., data = df1))
-```
+$$
+H_0: \beta_5 = \beta_6 = \beta_7 = \beta_8 = 0; H_a: \beta_j \neq 0 \text{, {j = 5,6,7, or 8}}
+$$
 
 ```{r}
-df1 <- df %>%
-  mutate(Blemishes = if_else(str_detect(Blemishes, 'Y'), 1, 0)) %>%
-  select(-Variety)
-
-vif(lm(Sweetness ~ . -Quality - Color, data = df1))
+lm.full.obj <- lm(Sweetness ~., data = df2)
+lm.null.obj <- lm(Sweetness ~. - Color, data = df2)
+anova(lm.null.obj, lm.full.obj)
 ```
+
 
 Interaction Term
 ***********************************************************
 ```{r}
-ggplot(data=df1, aes(Weight, Sweetness, col=Color)) + 
+ggplot(data=df1, aes(Size, Sweetness, col=Color)) + 
   geom_smooth(method="lm", se = FALSE) + theme_minimal()
 
 ggplot(data=df1, aes(Acidity, Sweetness, col=Color)) + 
@@ -236,61 +234,135 @@ ggplot(data=df1, aes(Acidity, Sweetness, col=Color)) +
 ggplot(data=df1, aes(Softness, Sweetness, col=Color)) + 
   geom_smooth(method="lm", se = FALSE) + theme_minimal()
 
-ggplot(data=df1, aes(HarvestTime, Sweetness, col=Color)) + 
+ggplot(data=df1, aes(Quality, Sweetness, col=Color)) + 
   geom_smooth(method="lm", se = FALSE) + theme_minimal()
 ```
 
+SIZE
 ```{r}
-lm.obj <- lm(Sweetness ~
-     Weight*Color + Weight*Acidity + Weight*Softness + Weight*HarvestTime +
-     Color*Acidity + Color*Softness + Color:HarvestTime + 
-     Acidity*Softness + Acidity*HarvestTime + Softness*HarvestTime, data = df2)
+lm.obj <- lm(Sweetness ~ Acidity + Softness + Quality + 
+     Size*Color, data = df2)
 
 summary(lm.obj)
 ```
 
 ```{r}
-lm.obj <- lm(Sweetness ~
-     Weight*Color + Weight*Acidity + Weight*Softness + Weight*HarvestTime +
-     Color*Acidity + Color*Softness + Color:HarvestTime + 
-     Acidity*Softness + Acidity*HarvestTime + Softness*HarvestTime, data = df2)
-
-step(lm.obj, direction = "both")
-```
-
-```{r}
-lm.obj <- lm(Sweetness ~ Weight + Color + Acidity + Softness + 
-    HarvestTime + Weight:Color + Weight:Acidity + Color:Acidity + 
-    Color:HarvestTime + Softness:HarvestTime, data = df2)
+lm.obj <- lm(Sweetness ~ Acidity + Softness + Quality + 
+     Size*Color, data = df2)
 
 null.obj <- lm(Sweetness ~., data = df2)
 
 anova(null.obj, lm.obj)
 ```
+
+SOFTNESS
+
 ```{r}
-lm.obj <- lm(Sweetness ~ Weight + Color + Acidity + Softness + 
-    HarvestTime + Weight:Color + Weight:Acidity + Color:Acidity + 
-    Color:HarvestTime + Softness:HarvestTime, data = df2)
+lm.obj <- lm(Sweetness ~ Size + Quality + Acidity + 
+     Softness*Color, data = df2)
 
 summary(lm.obj)
 ```
 
+```{r}
+lm.obj <- lm(Sweetness ~ Size + Quality + Acidity + 
+     Softness*Color, data = df2)
+
+null.obj <- lm(Sweetness ~., data = df2)
+
+anova(null.obj, lm.obj)
+```
+
+ACIDITY
+
+```{r}
+lm.obj <- lm(Sweetness ~ Size + Quality + Softness + 
+     Acidity*Color, data = df2)
+
+summary(lm.obj)
+```
+
+```{r}
+lm.obj <- lm(Sweetness ~ Size + Quality + Softness + 
+     Acidity*Color, data = df2)
+null.obj <- lm(Sweetness ~., data = df2)
+
+anova(null.obj, lm.obj)
+```
+
+Incremental F-test of Categorical Variable
+***********************************************************
+$$
+H_0: \beta_9 = \beta_{10} = \beta_{11} = \beta_8 = {12}; H_a: \beta_j \neq 0 \text{, {j = 9, 10, 11, or 12}}
+$$
+
+QUALITY
+```{r}
+lm.obj <- lm(Sweetness ~ Size + Softness + Acidity + 
+     Quality*Color, data = df2)
+
+summary(lm.obj)
+```
+
+
+```{r}
+lm.obj <- lm(Sweetness ~ Size + Softness + Acidity + 
+     Quality*Color, data = df2)
+
+null.obj <- lm(Sweetness ~., data = df2)
+
+anova(null.obj, lm.obj)
+```
+
+Full modeling
+$$
+Sweetness_i \sim \beta_0 + \beta_1 X_{\text{size i}} + \beta_2 X_{\text{Acidity i}} + \beta_3 X_{\text{Softness i}} + \beta_4 X_{\text{Quality i}} + \\ \beta_5 D_{\text{Color.LightOrange i}} + \beta_6 D_{\text{Color.Orange i}} + \beta_7 D_{\text{Color.OrangeRed i}} + \beta_8 D_{\text{Color.YellowOrange i}} + \\ \beta_9 (Quality \cdot D_\text{Color.Light Orange})_i + \beta_{10} (Quality \cdot  D_\text{Color.Orange})_i + \beta_{11} (Quality \cdot D_\text{Color.Orange-Red})_i + \\
+\beta_{12} (Quality \cdot D_\text{Color.Yellow-Orange})_i + 
+\epsilon_i, \epsilon_i \sim_{\text{iid}} N(0, \sigma^2) \\
+$$
+
+Fitted Equation
+$$
+\hat{\text{Sweetness}}
+= 21.0965 - (0.3312)\text{Size} - (0.3925)\text{Softness} - (0.8338)\text{Acidity} - (0.3894)\text{Quality} - \\
+(9.2542) D_\text{Color.Light Orange} - (7.0292) D_\text{Color.Orange} - (10.2022) D_\text{Color.Orange-Red} - (4.4549) D_\text{Color.Yellow-Orange} + \\
+(1.5896)Quality \cdot D_\text{Color.Light Orange}+ (1.1848)Quality \cdot D_\text{Color.Orange} + \\
+(2.2407)Quality \cdot D_\text{Color.Orange-Red} +
+(0.3385)Quality \cdot D_\text{Color.Yellow-Orange}
+$$
+
+
 Diagnostic Plots
 ***********************************************************
+
 ```{r}
-plot(lm.obj)
-```
-```{r}
-lm.obj <- lm(sqrt(Sweetness) ~ Weight + Color + Acidity + Softness + 
-    HarvestTime + Weight:Color + Weight:Acidity + Color:Acidity + 
-    Color:HarvestTime + Softness:HarvestTime, data = df2)
+lm.obj <- lm(Sweetness ~ Size + Softness + Acidity + 
+     Quality*Color, data = df2)
 
 plot(lm.obj)
+```
+
+```{r}
+lm.obj <- lm(log(Sweetness)~ Size + Softness + Acidity + 
+     Quality*Color, data = df2)
+
+plot(lm.obj, which = 2)
+```
+
+```{r}
+lm.obj <- lm(sqrt(Sweetness)~ Size + Softness + Acidity + 
+     Quality*Color, data = df2)
+
+plot(lm.obj, which = 2)
 ```
 
 
 ```{r}
 plot(hatvalues(lm.obj))
+text(x=1:nrow(df2),
+     y=hatvalues(lm.obj),
+     rownames(df2),
+     cex=0.6, pos=4, col="red")
 ```
 ```{r}
 plot(lm.obj, which=4)
@@ -305,40 +377,121 @@ cat("Rˆ2:", summary(lm.obj)$r.squared, "\n")
 ```
 
 ```{r}
-advertising_minus_6 <- df2[-6, ]
+advertising_minus_137 <- df2[-137, ]
 
-lm.obj_reduced <- lm(Sweetness ~ Weight + Color + Acidity + Softness + 
-    HarvestTime + Weight:Color + Weight:Acidity + Color:Acidity + 
-    Color:HarvestTime + Softness:HarvestTime, data = advertising_minus_6)
+lm.obj_reduced <- lm(Sweetness ~ Size + Softness + Acidity + 
+     Quality*Color, data = advertising_minus_137)
 
 cat("RSE:", sigma(lm.obj_reduced), "\n")
 cat("Rˆ2:", summary(lm.obj_reduced)$r.squared, "\n")
 ```
 
+Confidence Interval
+```{r}
+confint(lm.obj)
+```
 
 Multiple Logistic Regression
 ***********************************************************
-
 **What ar we considering our cut off for splitting?**
 
+Variable Selection
+- looks at VIF for variable selection
+
 ```{r}
-library(nnet)
+library(car)
+df1 <- df %>%
+  mutate(Blemishes = if_else(str_detect(Blemishes, 'Y'), 1, 0))%>%
+  select(-Variety)
 
-# Fit multinomial logistic regression model
-# multinom.obj <- multinom(Sweetness ~ Size + Weight + Acidity + Softness + HarvestTime + Ripeness + Blemishes, data = df1)
-multinom.obj <- multinom(Blemishes ~ ., data = df1)
+vif(glm(Blemishes ~ ., data = df1))
+```
 
-test <- step(multinom.obj)
+Run incremental F-test to see if model is significant with Color (using similar process from linear just assumming it can be applied)
+
+```{r}
+glm.full.obj <- glm(Blemishes ~., data = df1)
+glm.null.obj <- glm(Blemishes ~. - Color, data = df1)
+anova(lm.null.obj, lm.full.obj)
+```
+
+```{r}
+glm.multiple <- glm(Blemishes ~ ., 
+               data = df1, 
+               family="binomial")
+
+summary(glm.multiple)
+```
+
+simplfying model to those that are significant
+
+```{r}
+df2 <- df1%>%
+  select(Blemishes, Acidity, Ripeness, Size)
+
+glm.multiple <- glm(Blemishes ~ ., 
+               data = df2, 
+               family="binomial")
+
+summary(glm.multiple)
+```
+
+$$
+Y_i \sim _\text{indep} Bin (1, p_i), p_i = P(Y = 1 | Acidity_i, Ripeness_i)\\
+log(\frac{p(X)}{1 - p(X)}) = \beta_0 + \beta_1(Acidity_i) + \beta_2(Ripeness_i)
+$$
+
+
+```{r}
+df2 <- df2%>%
+  select(-Size)
+glm.multiple <- glm(Blemishes ~ .,
+                    data=df2,
+                    family="binomial")
+glm.multiple
+
+summary(glm.multiple)
 ```
 
 
+$$
+\text{Fitted Equation}: log(\frac{\hat{p(X)}}{1 - \hat{p(X)}}) = \\
+-3.1305 + (1.2494)\text{Acidity} - (0.5015) \text{Ripeness}
+$$
+Analysis of Deviance / Likelihood-Ratio Test
+for significance of full model/subset of predictors)
 ```{r}
-library(nnet)
+glm.multiple <- glm(Blemishes ~ .,
+                    data=df2,
+                    family="binomial")
 
-# Fit multinomial logistic regression model
-multinom.obj <- multinom(Blemishes ~ Size + Acidity + Softness + Ripeness + Weight, data = df1)
+glm.null <- glm(Blemishes ~ 1,
+                data=df2,
+                family="binomial")
 
-summary(multinom.obj)
+# Test for significance of the full model:
+anova(glm.null, glm.multiple, test = "LRT")
 ```
 
+
+Confidence Interval
+
+```{r}
+confint(glm.multiple, level = 0.95)
+```
+
+```{r}
+glm.multiple <- glm(Blemishes ~ .,
+                    data=df2,
+                    family="binomial")
+glm.multiple
+# Probability predictions:
+predict(glm.multiple, newdata=data.frame(Acidity = 1, Ripeness = 3.5),
+        type='response')
+
+```
+```{r}
+acidity2 <- nrow(df2[df2$Acidity == 3, ])
+acidity2/ nrow(df2[df2$Blemishes == 1, ])
+```
 
