@@ -486,9 +486,17 @@ coef(summary(glm.Ripeness))[, "z value"]
 
 - we reject H0 in both instances
 
-$$
-H_0 : \beta_2 = 0; H_a:\beta_2 \neq 0
-$$
+
+```{r}
+glm.both <- glm(Blemishes ~ .,
+                  data=df2,
+                  family="binomial")
+coef(summary(glm.both))[, "z value"]
+```
+
+```{r}
+2*pnorm(-abs(-4.712))
+```
 
 
 Analysis of Deviance / Likelihood-Ratio Test for significance of full model/subset of predictors)
