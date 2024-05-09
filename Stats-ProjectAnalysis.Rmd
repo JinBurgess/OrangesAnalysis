@@ -109,12 +109,23 @@ blemish_color_table
 ```{r}
 library(ggplot2)
 
-blemish_color_df <- as.data.frame(blemish_color_table)%>% 
-  mutate(prop = round(Freq/sum(Freq),2))
+blemish_color_df <- as.data.frame(blemish_color_table)
 
-colnames(blemish_color_df) <- c("Color", "Blemishes", "Frequency", "Proportion")
-
+colnames(blemish_color_df) <- c("Color", "Blemishes", "Freq")
 ```
+
+```{r}
+grouping <- df1%>%
+  group_by(Color)%>%
+  summarise(total = n())
+
+blemish_color_df <- left_join(blemish_color_df, grouping, by = "Color")
+
+blemish_color_df <- blemish_color_df%>% 
+  mutate(Proportion = round(Freq/total,2))
+  
+```
+
 
 ```{r}
 blemish_color_df%>%
