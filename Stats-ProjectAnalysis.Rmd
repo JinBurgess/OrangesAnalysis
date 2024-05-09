@@ -395,19 +395,22 @@ library(car)
 df1 <- df %>%
   mutate(Blemishes = if_else(str_detect(Blemishes, 'Y'), 1, 0))%>%
   select(-Variety)
+```
 
+```{r}
 vif(glm(Blemishes ~ ., data = df1))
+```
+
+```{r}
+step(glm(Blemishes ~ ., data = df1))
 ```
 
 Run incremental F-test to see if model is significant with Color (using similar process from linear just assumming it can be applied)
 
 ```{r}
-glm.full.obj <- glm(Blemishes ~., data = df1)
-glm.null.obj <- glm(Blemishes ~. - Color, data = df1)
-anova(lm.null.obj, lm.full.obj)
-```
+df1 <- df1 %>%
+  select(Softness, Size, Weight, Acidity, Ripeness, Blemishes)
 
-```{r}
 glm.multiple <- glm(Blemishes ~ ., 
                data = df1, 
                family="binomial")
@@ -419,7 +422,7 @@ simplfying model to those that are significant
 
 ```{r}
 df2 <- df1%>%
-  select(Blemishes, Acidity, Ripeness, Size)
+  select(Blemishes, Acidity, Ripeness, Weight)
 
 glm.multiple <- glm(Blemishes ~ ., 
                data = df2, 
@@ -438,7 +441,7 @@ $$
 
 ```{r}
 df2 <- df2%>%
-  select(-Size)
+  select(-Weight)
 glm.multiple <- glm(Blemishes ~ .,
                     data=df2,
                     family="binomial")
@@ -453,6 +456,8 @@ $$
 \text{Fitted Equation}: log(\frac{\hat{p(X)}}{1 - \hat{p(X)}}) = \\
 -3.1305 + (1.2494)\text{Acidity} - (0.5015) \text{Ripeness}
 $$
+
+
 Coefficient Analysis? (Wald Approximation)
 ***********************************************************
 
@@ -495,7 +500,8 @@ coef(summary(glm.both))[, "z value"]
 ```
 
 ```{r}
-2*pnorm(-abs(-4.712))
+2*pnorm(-abs(3.5251))
+2*pnorm(-abs(4.0458))
 ```
 
 
@@ -513,6 +519,51 @@ glm.null <- glm(Blemishes ~ 1,
 
 # Test for significance of the full model:
 anova(glm.null, glm.multiple, test = "LRT")
+```
+
+
+```{r}
+anova(glm.Acidity, glm.multiple, test = "LRT")
+anova(glm.Ripeness, glm.multiple, test = "LRT")
+```
+
+Quality of fit
+***********************************************************
+```{r}
+# Full
+mean(abs(resid(glm.multiple, type="response")))
+
+# Acidity
+mean(abs(resid(glm.Acidity, type="response")))
+
+# ripeness
+mean(abs(resid(glm.Ripeness, type="response")))
+```
+
+misclassification
+```{r}
+glm.pred <- predict(glm.multiple, type='response')
+def.pred <- ifelse(glm.pred > 0.50, 1, 0)
+
+conf.mat <- table(Pred=def.pred, 
+                  True=df2$Blemishes)
+conf.mat
+```
+
+misclassification rate
+```{r}
+# Misclassification rate
+mean(def.pred != df2$Blemishes)
+mean(0 != df2$Blemishes)          # For the "baseline model"
+
+# False Positives, False Negatives
+prop.table(conf.mat, margin=2)   # FPR = P(Pred = Yes | True = No) = 0.004,  FNR = P(Pred = No | True = Yes) = 0.684
+
+# FPR, FNR for the "baseline model":
+conf.mat.baseline <- table(Pred = rep(0,length(df2$Blemishes)),  # FPR = 0,  FNR = 1
+                           True=df2$Blemishes)
+conf.mat.baseline
+
 ```
 
 
