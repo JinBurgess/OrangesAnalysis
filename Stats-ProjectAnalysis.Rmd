@@ -106,15 +106,6 @@ blemish_color_table
   round(expected, 2)
 ```
 
-$$
-\frac{\text{(Observed - Expected)}^2}{\text{Expected}}
-$$
-
-```{r}
-chisq <- ((blemish_color_table - expected)^2 / expected)
-round(chisq, 3)
-```
-
 ```{r}
 library(ggplot2)
 
@@ -396,6 +387,7 @@ Multiple Logistic Regression
 **What ar we considering our cut off for splitting?**
 
 Variable Selection
+***********************************************************
 - looks at VIF for variable selection
 
 ```{r}
@@ -436,6 +428,8 @@ glm.multiple <- glm(Blemishes ~ .,
 summary(glm.multiple)
 ```
 
+Full Model 
+
 $$
 Y_i \sim _\text{indep} Bin (1, p_i), p_i = P(Y = 1 | Acidity_i, Ripeness_i)\\
 log(\frac{p(X)}{1 - p(X)}) = \beta_0 + \beta_1(Acidity_i) + \beta_2(Ripeness_i)
@@ -453,13 +447,48 @@ glm.multiple
 summary(glm.multiple)
 ```
 
+Fitted Model
 
 $$
 \text{Fitted Equation}: log(\frac{\hat{p(X)}}{1 - \hat{p(X)}}) = \\
 -3.1305 + (1.2494)\text{Acidity} - (0.5015) \text{Ripeness}
 $$
-Analysis of Deviance / Likelihood-Ratio Test
-for significance of full model/subset of predictors)
+Wald Approximation 
+***********************************************************
+
+$$
+H_0 : \beta_1 = 0; H_a:\beta_1 \neq 0
+$$
+
+```{r}
+glm.Acidity <- glm(Blemishes ~ Acidity,
+                  data=df2,
+                  family="binomial")
+coef(summary(glm.Acidity))[, "z value"]
+```
+```{r}
+2*pnorm(-abs(4.308))
+```
+
+$$
+H_0 : \beta_2 = 0; H_a:\beta_2 \neq 0
+$$
+
+```{r}
+glm.Ripeness <- glm(Blemishes ~ Ripeness,
+                  data=df2,
+                  family="binomial")
+coef(summary(glm.Ripeness))[, "z value"]
+```
+```{r}
+2*pnorm(-abs(-4.712))
+```
+
+- we reject H0 in both instances
+
+Analysis of Deviance / Likelihood-Ratio Test for significance of full model/subset of predictors)
+***********************************************************
+
 ```{r}
 glm.multiple <- glm(Blemishes ~ .,
                     data=df2,
@@ -475,23 +504,38 @@ anova(glm.null, glm.multiple, test = "LRT")
 
 
 Confidence Interval
+***********************************************************
 
 ```{r}
 confint(glm.multiple, level = 0.95)
+```
+
+Predictions
+***********************************************************
+
+```{r}
+freq <- df2 %>%
+  group_by(Acidity, Ripeness) %>%
+  summarise(total = n())%>%
+  arrange(desc(total))%>%
+  head(5)
+freq
 ```
 
 ```{r}
 glm.multiple <- glm(Blemishes ~ .,
                     data=df2,
                     family="binomial")
-glm.multiple
 # Probability predictions:
-predict(glm.multiple, newdata=data.frame(Acidity = 1, Ripeness = 3.5),
+predict(glm.multiple, newdata=data.frame(Acidity = 3.2, Ripeness = 4.5),
         type='response')
 
 ```
+
+The probability of an orange having a blemish given that it has an acidity lvl of 3.2 and a ripeness lvl of 4.5 is 19.95%
+
 ```{r}
-acidity2 <- nrow(df2[df2$Acidity == 3, ])
-acidity2/ nrow(df2[df2$Blemishes == 1, ])
+11/ nrow(df2[df2$Blemishes == 1, ])
 ```
 
+The odds (not log-odds) of an orange with acidity of 3.2 and ripeness of 4.5 having a blemish is 0.12
