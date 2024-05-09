@@ -453,7 +453,7 @@ $$
 \text{Fitted Equation}: log(\frac{\hat{p(X)}}{1 - \hat{p(X)}}) = \\
 -3.1305 + (1.2494)\text{Acidity} - (0.5015) \text{Ripeness}
 $$
-Wald Approximation 
+Coefficient Analysis? (Wald Approximation)
 ***********************************************************
 
 $$
@@ -485,6 +485,11 @@ coef(summary(glm.Ripeness))[, "z value"]
 ```
 
 - we reject H0 in both instances
+
+$$
+H_0 : \beta_2 = 0; H_a:\beta_2 \neq 0
+$$
+
 
 Analysis of Deviance / Likelihood-Ratio Test for significance of full model/subset of predictors)
 ***********************************************************
@@ -522,6 +527,11 @@ freq <- df2 %>%
 freq
 ```
 
+$$
+log(\frac{\hat{p(X)}}{1 - \hat{p(X)}}) = -3.1305 + (1.2494)(3.5) - (0.5015)(4.5)
+$$
+
+
 ```{r}
 glm.multiple <- glm(Blemishes ~ .,
                     data=df2,
@@ -531,6 +541,7 @@ predict(glm.multiple, newdata=data.frame(Acidity = 3.2, Ripeness = 4.5),
         type='response')
 
 ```
+
 
 The probability of an orange having a blemish given that it has an acidity lvl of 3.2 and a ripeness lvl of 4.5 is 19.95%
 
