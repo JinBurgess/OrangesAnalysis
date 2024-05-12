@@ -1,0 +1,617 @@
+
+
+```{r}
+library(readr)
+df <- read_csv('./OrangeQualityAnalysis/data/OrangeQualityData.csv')
+```
+```{r}
+library(dplyr)
+library(stringr)
+
+colnames(df) <- c("Size", "Weight", "Sweetness",
+                  "Acidity", "Softness", "HarvestTime", 
+                  "Ripeness", "Color", "Variety", 
+                  "Blemishes", "Quality")
+df1 <- df %>%
+  mutate(Blemishes = if_else(str_detect(Blemishes, 'Y'), "Y", "N"))%>%
+  select(-Variety)
+
+# df1 <- df %>%
+#   mutate(`Blemishes (Y/N)` = if_else(str_detect(`Blemishes (Y/N)`, 'Y'), 1, 0))
+# 1 = Yes blemish
+# 0 = No blemish
+```
+
+Categorical-Categorical
+***********************************************************
+contingency table
+```{r}
+my.chisq.test <- function(conting.table) {
+  # Calculate sums of rows and columns
+  # https://www.geeksforgeeks.org/mutating-column-in-dplyr-using-rowsums/
+  row.sums <- rowSums(conting.table)
+  col.sums <- colSums(conting.table)
+  total.sum <- sum(conting.table)
+  
+  # Calculate expected cell counts
+  # Eij = (ni * n.j)/n
+  # https://www.geeksforgeeks.org/outer-function-in-r/
+  expected <- outer(row.sums, col.sums) / total.sum
+  
+  # x^2 = E(observed - expected)^2/expected
+  # observed = continegency table 
+  chisq <- sum((conting.table - expected)^2 / expected)
+  
+  # Calculate degrees of freedom
+  deg.free <- (nrow(conting.table) - 1) * (ncol(conting.table) - 1)
+  
+  # Calculate p-value
+  p.value <- 1 - pchisq(chisq, df = deg.free)
+  
+  return(list(chi2 = chisq, p_value = p.value, df = deg.free))
+}
+```
+
+
+```{r}
+df_cateogrical <- df1 %>%
+  select(Blemishes, Color)
+```
+
+
+```{r}
+blemish_color_table <- table(df_cateogrical$Color, df_cateogrical$Blemishes)
+my.chisq.test(blemish_color_table)
+```
+H0: Color is independent of Blemishes
+Ha: Color is dependent of Blemishes
+
+Fail to reject H0
+
+```{r}
+#create density curve
+curve(dchisq(x, df = 4), from = 0, to = 25,
+main = 'Chi-Square Distribution (df = 4)',
+ylab = 'Density',
+lwd = 2)
+
+#create vector of x values
+x_vector <- seq(5.86, 25)
+
+#create vector of chi-square density values
+p_vector <- dchisq(x_vector, df = 4)
+
+#fill in portion of the density plot from 0 to 40
+polygon(c(x_vector, rev(x_vector)), c(p_vector, rep(0, length(p_vector))),
+        col = adjustcolor('blue', alpha=0.3), border = NA)
+
+abline(v = 4, col = "red", lwd = 3)
+```
+
+
+```{r}
+blemish_color_table
+```
+
+```{r}
+  row.sums <- rowSums(blemish_color_table)
+  col.sums <- colSums(blemish_color_table)
+  total.sum <- sum(blemish_color_table)
+  
+  # Calculate expected cell counts
+  # Eij = (ni * n.j)/n
+  # https://www.geeksforgeeks.org/outer-function-in-r/
+  expected <- outer(row.sums, col.sums) / total.sum
+  
+  round(expected, 2)
+```
+
+```{r}
+library(ggplot2)
+
+blemish_color_df <- as.data.frame(blemish_color_table)
+
+colnames(blemish_color_df) <- c("Color", "Blemishes", "Freq")
+```
+
+```{r}
+grouping <- df1%>%
+  group_by(Color)%>%
+  summarise(total = n())
+
+blemish_color_df <- left_join(blemish_color_df, grouping, by = "Color")
+
+blemish_color_df <- blemish_color_df%>% 
+  mutate(Proportion = round(Freq/total,2))
+  
+```
+
+
+```{r}
+blemish_color_df%>%
+  ggplot(aes(x = Blemishes, y = Proportion, fill = Blemishes))+
+  geom_col() + facet_wrap(~Color) + guides(fill = "none") + theme_minimal() +
+  theme(axis.line.y = element_blank())
+```
+
+$$
+H_0 : \text{Orange color is independent of blemish presence} \\
+H_a : \text{Orange color is dependent of blemish presence}
+$$
+
+Multi-Linear Regression
+***********************************************************
+
+Correlation Matrix
+```{r}
+library(tidyverse)
+library(caret)
+df_matrix <- df1 %>%
+    select_if(is.numeric) %>%
+    cor(.)
+round(df_matrix,2)
+```
+VIF
+```{r}
+library(car)
+vif(lm(Quality ~ ., data = df1))
+```
+
+Written Equations
+***********************************************************
+$$
+Quality_i \sim \beta_0 + \beta_1 X_{\text{size i}} + \beta_2 X_{\text{weight i}} + \beta_3 X_{\text{Acidity i}} + 
+\beta_4 X_{\text{Softness i}} + \beta_5 X_{\text{HarvestTime i}} + \\
+\beta_6 X_{\text{ripness i}} + \beta_7 D_{\text{Color.LightOrange i}} + \beta_8 D_{\text{Color.Orange i}} +
+\beta_9 D_{\text{Color.OrangeRed i}} + \\
+\beta_{10} D_{\text{Color.YellowOrange i}} + 
+\beta_{11} D_{\text{BlemishesY i}}+ \beta_{12} X_{\text{Sweetness i}} + \epsilon_i, \epsilon_i \sim_{\text{iid}} N(0, \sigma^2) \\
+$$
+
+$$
+\text{Baseline: color is deep orange}\\
+D_{\text{Color.LightOrange i}} = \{ \text{1, if color is light orange otherwise, 0}\} \\
+D_{\text{Color.Orange i}} = \{ \text{1, if color is orange otherwise, 0}\}\\
+D_{\text{Color.OrangeRed i}} = \{ \text{1, if color is orange red otherwise, 0}\}\\
+D_{\text{Color.YellowOrange i}} = \{ \text{1, if color is yellow orange otherwise, 0}\}\\
+$$
+$$
+\text{Baseline: blemishes is No}\\
+D_{\text{BlemishesY i}} = \{ \text{1, if blemishes is Yes otherwise, 0}\}
+$$
+
+Multiple Linear Regression
+***********************************************************
+```{r}
+lm.obj <- lm(Quality ~ ., data = df1)
+summary(lm.obj)
+```
+
+AIC
+***********************************************************
+```{r}
+step(lm(Quality ~., data = df1), k = log(nrow(df1)))
+```
+
+
+Full modeling
+$$
+Quality_i \sim \beta_0 + \beta_1 X_{\text{Weight i}} + \beta_2 X_{\text{Acidity i}} + \beta_3 X_{\text{Sweetness i}} + \\
+\beta_4 X_{\text{HarvestTime i}} + \beta_5 X_{\text{Ripeness i}} + \beta_6 D_{\text{Color.LightOrange i}} + \beta_7 D_{\text{Color.Orange i}} + \\
+\beta_8 D_{\text{Color.OrangeRed i}} + \beta_9 D_{\text{Color.YellowOrange i}} + \epsilon_i, \epsilon_i \sim_{\text{iid}} N(0, \sigma^2) \\
+$$
+
+```{r}
+df2 <- df1%>%
+  select(-c(Blemishes, Size, Softness))
+
+lm.obj <- lm(Quality ~ ., data = df2)
+summary(lm.obj)
+```
+
+Fitted
+$$
+\hat{Quality} = 4.903 - 0.002(Weight) -0.361(Acidity) + 0.121 (Sweetness) - 0.056(HarvestTime) +\\
+0.108(Ripeness) -2.806(D_{\text{Color.LightOrange}}) -1.806(D_{\text{Color.Orange}}) -
+0.982 (D_{\text{Color.OrangeRed}}) -3.331 (D_{\text{Color.YellowOrange}})
+$$
+
+Incremental F-test of Categorical Variable
+***********************************************************
+$$
+H_0: \beta_6 = \beta_7 = \beta_8 = \beta_9 = 0; H_a: \beta_j \neq 0 \text{, {j = 6,7,8, or 9}}
+$$
+
+```{r}
+lm.full.obj <- lm(Quality ~., data = df2)
+lm.null.obj <- lm(Quality ~. - Color, data = df2)
+anova(lm.null.obj, lm.full.obj)
+```
+
+
+Interaction Term
+***********************************************************
+```{r}
+ggplot(data=df2, aes(Weight, Quality, col=Color)) + 
+  geom_smooth(method="lm", se = FALSE) + theme_minimal()
+
+ggplot(data=df2, aes(Acidity, Quality, col=Color)) + 
+  geom_smooth(method="lm", se = FALSE) + theme_minimal()
+
+ggplot(data=df2, aes(HarvestTime, Quality, col=Color)) + 
+  geom_smooth(method="lm", se = FALSE) + theme_minimal()
+
+ggplot(data=df2, aes(Sweetness, Quality, col=Color)) + 
+  geom_smooth(method="lm", se = FALSE) + theme_minimal()
+
+ggplot(data=df2, aes(Ripeness, Quality, col=Color)) + 
+  geom_smooth(method="lm", se = FALSE) + theme_minimal()
+```
+
+Ripeness
+
+```{r}
+lm.obj <- lm(Quality ~ Weight + Sweetness + Acidity + HarvestTime + 
+    Ripeness * Color, data = df2)
+
+null.obj <- lm(Quality ~., data = df2)
+
+anova(null.obj, lm.obj)
+```
+
+Sweetness
+
+```{r}
+lm.obj <- lm(Quality ~ Weight + Ripeness + Acidity + HarvestTime + 
+    Sweetness * Color, data = df2)
+
+summary(lm.obj)
+```
+
+```{r}
+lm.obj <- lm(Quality ~ Weight + Ripeness + Acidity + HarvestTime + 
+    Sweetness * Color, data = df2)
+
+null.obj <- lm(Quality ~., data = df2)
+
+anova(null.obj, lm.obj)
+```
+
+ACIDITY
+
+```{r}
+lm.obj <- lm(Quality ~ Weight + Ripeness + Sweetness + HarvestTime + 
+    Acidity * Color, data = df2)
+null.obj <- lm(Quality ~., data = df2)
+
+anova(null.obj, lm.obj)
+```
+
+
+HarvestTime
+```{r}
+lm.obj <- lm(Quality ~ Weight + Ripeness + Sweetness + Acidity + 
+    HarvestTime * Color, data = df2)
+
+summary(lm.obj)
+```
+
+```{r}
+
+lm.obj <- lm(Quality ~ Weight + Ripeness + Sweetness + Acidity + 
+    HarvestTime * Color, data = df2)
+
+null.obj <- lm(Quality ~., data = df2)
+
+anova(null.obj, lm.obj)
+```
+
+Weight
+
+```{r}
+lm.obj <- lm(Quality ~ HarvestTime + Ripeness + Sweetness + Acidity + 
+    Weight * Color, data = df2)
+
+null.obj <- lm(Quality ~., data = df2)
+
+anova(null.obj, lm.obj)
+```
+
+
+Incremental F-test of Categorical Variable
+***********************************************************
+$$
+H_0: \beta_{10} = \beta_{11} = ... = \beta_{17} = 0; H_a: \beta_j \neq 0 \text{, {j = 10, 11, ..., 17}}
+$$
+
+```{r}
+lm.obj <- lm(Quality ~ Weight + Ripeness + Sweetness + Acidity + 
+    HarvestTime * Color + Sweetness*Color, data = df2)
+step(lm.obj)
+```
+
+```{r}
+lm.obj <- lm(Quality ~ Weight + Ripeness + Sweetness + Acidity + 
+    HarvestTime * Color + Sweetness*Color, data = df2)
+
+null.obj <- lm(Quality ~., data = df2)
+
+anova(null.obj, lm.obj)
+```
+
+Full modeling
+$$
+Quality_i \sim \beta_0 + \beta_1 X_{\text{Weight i}} + \beta_2 X_{\text{Acidity i}} + \beta_3 X_{\text{Sweetness i}} + 
+\beta_4 X_{\text{HarvestTime i}} + \beta_5 X_{\text{Ripeness i}} + \beta_6 D_{\text{Color.LightOrange i}} + \\ \beta_7 D_{\text{Color.Orange i}} + \beta_8 D_{\text{Color.OrangeRed i}} + \beta_9 D_{\text{Color.YellowOrange i}} + \beta_{10} (Sweetness \cdot D_\text{Color.Light Orange})_i + \\
+\beta_{11} (Sweetness \cdot  D_\text{Color.Orange})_i + \beta_{12} (Sweetness \cdot D_\text{Color.Orange-Red})_i +
+\beta_{13} (Sweetness \cdot D_\text{Color.Yellow-Orange})_i +  \\ \beta_{14} (HarvestTime \cdot D_\text{Color.Light Orange})_i + 
+\beta_{15} (HarvestTime \cdot  D_\text{Color.Orange})_i + \\ \beta_{16} (HarvestTime \cdot D_\text{Color.Orange-Red})_i +
+\beta_{17} (HarvestTime \cdot D_\text{Color.Yellow-Orange})_i + 
+\epsilon_i, \epsilon_i \sim_{\text{iid}} N(0, \sigma^2) \\
+$$
+
+```{r}
+summary(lm.obj)
+```
+
+Fitted Equation
+$$
+\hat{\text{Quality}}
+= 5.773 - (0.002)\text{Weight} + (0.036)\text{Sweetness} - (0.380)\text{Acidity} - (0.036)\text{HarvestTime} + (0.076)\text{Ripeness} -\\
+(3.952) D_\text{Color.Light Orange} - (0.620) D_\text{Color.Orange} - (1.173) D_\text{Color.Orange-Red} - (0.545) D_\text{Color.Yellow-Orange} + \\
+(0.032)HarvestTime \cdot D_\text{Color.Light Orange} - (0.098)HarvestTime \cdot D_\text{Color.Orange} + 
+(0.007)HarvestTime \cdot D_\text{Color.Orange-Red} + \\(0.123)HarvestTime \cdot D_\text{Color.Yellow-Orange} + (0.262)Sweetness \cdot D_\text{Color.Light Orange} + (0.162)Sweetness \cdot D_\text{Color.Orange} + \\
+(0.078)Sweetness \cdot D_\text{Color.Orange-Red} - (0.092)Sweetness \cdot D_\text{Color.Yellow-Orange}
+$$
+
+
+Diagnostic Plots
+***********************************************************
+
+```{r}
+lm.obj <- lm(Quality ~ Weight + Ripeness + Sweetness + Acidity + 
+    HarvestTime * Color + Sweetness*Color, data = df2)
+
+plot(lm.obj)
+```
+
+
+```{r}
+plot(hatvalues(lm.obj))
+text(x=1:nrow(df2),
+     y=hatvalues(lm.obj),
+     rownames(df2),
+     cex=0.6, pos=4, col="red")
+```
+
+```{r}
+plot(lm.obj, which=4)
+```
+
+Influential Observations
+***********************************************************
+
+```{r}
+cat("RSE:", sigma(lm.obj), "\n")
+cat("Rˆ2:", summary(lm.obj)$r.squared, "\n")
+```
+
+```{r}
+advertising_minus_20 <- df2[-20, ]
+
+lm.obj_reduced <- lm(Quality ~ Weight + Ripeness + Sweetness + Acidity + 
+    HarvestTime * Color + Sweetness*Color, data = advertising_minus_20)
+
+cat("RSE:", sigma(lm.obj_reduced), "\n")
+cat("Rˆ2:", summary(lm.obj_reduced)$r.squared, "\n")
+```
+
+Confidence Interval
+```{r}
+confint(lm.obj)
+```
+
+Multiple Logistic Regression
+***********************************************************
+**What ar we considering our cut off for splitting?**
+
+Variable Selection
+***********************************************************
+- looks at VIF for variable selection
+
+```{r}
+library(car)
+df1 <- df %>%
+  mutate(Blemishes = if_else(str_detect(Blemishes, 'Y'), 1, 0))%>%
+  select(-Variety)
+```
+
+```{r}
+vif(glm(Blemishes ~ ., data = df1))
+```
+
+```{r}
+step(glm(Blemishes ~ ., data = df1))
+```
+
+
+Step BIC
+
+```{r}
+step(glm(Blemishes ~ ., data = df1,  family="binomial"), direction = "both", trace = 0, k = log(nrow(df1)))
+# step(glm(Blemishes ~ ., data = df1),, k=log(Blemishes.n))
+```
+
+simplfying model to those that are significant
+
+```{r}
+df2 <- df1%>%
+  select(Blemishes, Acidity, Ripeness)
+
+glm.multiple <- glm(Blemishes ~ ., 
+               data = df2, 
+               family="binomial")
+
+summary(glm.multiple)
+```
+
+Full Model 
+
+$$
+Y_i \sim _\text{indep} Bin (1, p_i), p_i = P(Y = 1 | Acidity_i, Ripeness_i)\\
+log(\frac{p(X)}{1 - p(X)}) = \beta_0 + \beta_1(Acidity_i) + \beta_2(Ripeness_i)
+$$
+
+
+```{r}
+df2 <- df2%>%
+  select(-Weight)
+glm.multiple <- glm(Blemishes ~ .,
+                    data=df2,
+                    family="binomial")
+glm.multiple
+
+summary(glm.multiple)
+```
+
+```{r}
+df3<-   df2%>%
+  mutate(Blemishes = if_else((Blemishes == 1), "Y", "N"))
+
+ggplot(df3, aes(x=Acidity, y=Blemishes, col=Blemishes)) +
+  geom_boxplot() + theme_minimal()
+```
+
+```{r}
+ggplot(df3, aes(y=Blemishes, x=Ripeness, col=Blemishes)) +
+  geom_boxplot() + theme_minimal()
+```
+
+
+Fitted Model
+
+$$
+\text{Fitted Equation}: log(\frac{\hat{p(X)}}{1 - \hat{p(X)}}) = \\
+-3.1305 + (1.2494)\text{Acidity} - (0.5015) \text{Ripeness}
+$$
+
+
+Coefficient Analysis (Wald Approximation)
+***********************************************************
+
+$$
+H_0 : \beta_j = 0; H_a:\beta_j \neq 0
+$$
+- we reject H0 in both instances
+
+- already ran when we did glm(Blemishes ~.)
+
+
+Analysis of Deviance / Likelihood-Ratio Test for significance of full model/subset of predictors)
+***********************************************************
+
+```{r}
+glm.multiple <- glm(Blemishes ~ .,
+                    data=df2,
+                    family="binomial")
+
+glm.null <- glm(Blemishes ~ 1,
+                data=df2,
+                family="binomial")
+
+# Test for significance of the full model:
+anova(glm.null, glm.multiple, test = "LRT")
+```
+
+significance of full model
+
+```{r}
+anova(glm.Acidity, glm.multiple, test = "LRT")
+anova(glm.Ripeness, glm.multiple, test = "LRT")
+```
+
+- at least one predictor is significant
+
+Quality of fit
+***********************************************************
+```{r}
+# Full
+mean(abs(resid(glm.multiple, type="response")))
+
+# Acidity
+mean(abs(resid(glm.Acidity, type="response")))
+
+# ripeness
+mean(abs(resid(glm.Ripeness, type="response")))
+```
+
+misclassification
+```{r}
+glm.pred <- predict(glm.multiple, type='response')
+def.pred <- ifelse(glm.pred > 0.50, 1, 0)
+
+conf.mat <- table(Pred=def.pred, 
+                  True=df2$Blemishes)
+conf.mat
+```
+
+misclassification rate
+```{r}
+# Misclassification rate
+mean(def.pred != df2$Blemishes)
+mean(0 != df2$Blemishes)          # For the "baseline model"
+
+# False Positives, False Negatives
+prop.table(conf.mat, margin=2)   # FPR = P(Pred = Yes | True = No) = 0.004,  FNR = P(Pred = No | True = Yes) = 0.684
+
+# FPR, FNR for the "baseline model":
+conf.mat.baseline <- table(Pred = rep(0,length(df2$Blemishes)),  # FPR = 0,  FNR = 1
+                           True=df2$Blemishes)
+conf.mat.baseline
+
+```
+
+
+Confidence Interval
+***********************************************************
+
+```{r}
+confint(glm.multiple, level = 0.95)
+```
+
+Predictions
+***********************************************************
+
+```{r}
+freq <- df2 %>%
+  group_by(Acidity, Ripeness) %>%
+  summarise(total = n())%>%
+  arrange(desc(total))%>%
+  head(5)
+freq
+```
+
+$$
+log(\frac{\hat{p(X)}}{1 - \hat{p(X)}}) = -3.1305 + (1.2494)(3.5) - (0.5015)(4.5)
+$$
+
+
+
+```{r}
+glm.multiple <- glm(Blemishes ~ .,
+                    data=df2,
+                    family="binomial")
+# Probability predictions:
+predict(glm.multiple, newdata=data.frame(Acidity = 3.2, Ripeness = 4.5),
+        type='response')
+
+```
+
+
+The probability of an orange having a blemish given that it has an acidity lvl of 3.2 and a ripeness lvl of 4.5 is 19.95%
+
+```{r}
+11/ nrow(df2[df2$Blemishes == 1, ])
+```
+
+The odds (not log-odds) of an orange with acidity of 3.2 and ripeness of 4.5 having a blemish is 0.12
